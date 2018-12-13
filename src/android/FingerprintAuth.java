@@ -60,7 +60,6 @@ public class FingerprintAuth extends CordovaPlugin {
     private static final int PERMISSIONS_REQUEST_FINGERPRINT = 346437;
     private static final int REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS = 1;
     private static final String CREDENTIAL_DELIMITER = "|:|";
-    private String whichPluginWillUse = "FingerprintManager";
 
     public static Context mContext;
     public static Activity mActivity;
@@ -104,8 +103,13 @@ public class FingerprintAuth extends CordovaPlugin {
         SECURITY_EXCEPTION
     }
 
-    public PluginAction mAction;
+    public enum PluginImportClass {
+        FingerprintManager,
+        FingerprintManagerCompat
+    }
 
+    public PluginAction mAction;
+    public PluginImportClass whichPluginWillUse;
     /**
      * Alias for our key in the Android Key Store
      */
@@ -338,58 +342,61 @@ public class FingerprintAuth extends CordovaPlugin {
                                     public void run() {
                                         // Set up the crypto object for later. The object will be authenticated by use
                                         // of the fingerprint.
-                                        if (whichPluginWillUse == "FingerprintManager") {
-                                            mFragment = new FingerprintAuthenticationDialogFragment();
-                                            if (initCipher()) {
-                                                mFragment.setCancelable( false );
-                                                // Show the fingerprint dialog. The user has the option to use the fingerprint with
-                                                // crypto, or you can fall back to using a server-side verified password.
-                                                mFragment.setCryptoObject( new FingerprintManager.CryptoObject( mCipher ) );
-                                                FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
-                                                transaction.add( mFragment, DIALOG_FRAGMENT_TAG );
-                                                transaction.commitAllowingStateLoss();
-                                            } else {
-                                                if (!mDisableBackup) {
-                                                    // This happens if the lock screen has been disabled or or a fingerprint got
-                                                    // enrolled. Thus show the dialog to authenticate with their password
+                                        switch(whichPluginWillUse){
+                                            case FingerprintManager:
+                                                mFragment = new FingerprintAuthenticationDialogFragment();
+                                                if (initCipher()) {
+                                                    mFragment.setCancelable( false );
+                                                    // Show the fingerprint dialog. The user has the option to use the fingerprint with
+                                                    // crypto, or you can fall back to using a server-side verified password.
                                                     mFragment.setCryptoObject( new FingerprintManager.CryptoObject( mCipher ) );
-                                                    mFragment.setStage( FingerprintAuthenticationDialogFragment.Stage.NEW_FINGERPRINT_ENROLLED );
                                                     FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
                                                     transaction.add( mFragment, DIALOG_FRAGMENT_TAG );
                                                     transaction.commitAllowingStateLoss();
                                                 } else {
-                                                    Log.e( TAG, "Failed to init Cipher and backup disabled." );
-                                                    mCallbackContext.error( PluginError.INIT_CIPHER_FAILED.name() );
-                                                    mPluginResult = new PluginResult( PluginResult.Status.ERROR );
-                                                    mCallbackContext.sendPluginResult( mPluginResult );
+                                                    if (!mDisableBackup) {
+                                                        // This happens if the lock screen has been disabled or or a fingerprint got
+                                                        // enrolled. Thus show the dialog to authenticate with their password
+                                                        mFragment.setCryptoObject( new FingerprintManager.CryptoObject( mCipher ) );
+                                                        mFragment.setStage( FingerprintAuthenticationDialogFragment.Stage.NEW_FINGERPRINT_ENROLLED );
+                                                        FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
+                                                        transaction.add( mFragment, DIALOG_FRAGMENT_TAG );
+                                                        transaction.commitAllowingStateLoss();
+                                                    } else {
+                                                        Log.e( TAG, "Failed to init Cipher and backup disabled." );
+                                                        mCallbackContext.error( PluginError.INIT_CIPHER_FAILED.name() );
+                                                        mPluginResult = new PluginResult( PluginResult.Status.ERROR );
+                                                        mCallbackContext.sendPluginResult( mPluginResult );
+                                                    }
                                                 }
-                                            }
-                                        } else {
-                                            mFragmentForCompat = new FingerprintCompatAuthenticationDialogFragment();
-                                            if (initCipher()) {
-                                                mFragmentForCompat.setCancelable( false );
-                                                // Show the fingerprint dialog. The user has the option to use the fingerprint with
-                                                // crypto, or you can fall back to using a server-side verified password.
-                                                mFragmentForCompat.setCryptoObject( new FingerprintManagerCompat.CryptoObject( mCipher ) );
-                                                FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
-                                                transaction.add( mFragmentForCompat, DIALOG_FRAGMENT_TAG );
-                                                transaction.commitAllowingStateLoss();
-                                            } else {
-                                                if (!mDisableBackup) {
-                                                    // This happens if the lock screen has been disabled or or a fingerprint got
-                                                    // enrolled. Thus show the dialog to authenticate with their password
+                                                break;
+                                            case FingerprintManagerCompat:
+                                                mFragmentForCompat = new FingerprintCompatAuthenticationDialogFragment();
+                                                if (initCipher()) {
+                                                    mFragmentForCompat.setCancelable( false );
+                                                    // Show the fingerprint dialog. The user has the option to use the fingerprint with
+                                                    // crypto, or you can fall back to using a server-side verified password.
                                                     mFragmentForCompat.setCryptoObject( new FingerprintManagerCompat.CryptoObject( mCipher ) );
-                                                    mFragmentForCompat.setStage( FingerprintCompatAuthenticationDialogFragment.Stage.NEW_FINGERPRINT_ENROLLED );
                                                     FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
                                                     transaction.add( mFragmentForCompat, DIALOG_FRAGMENT_TAG );
                                                     transaction.commitAllowingStateLoss();
                                                 } else {
-                                                    Log.e( TAG, "Failed to init Cipher and backup disabled." );
-                                                    mCallbackContext.error( PluginError.INIT_CIPHER_FAILED.name() );
-                                                    mPluginResult = new PluginResult( PluginResult.Status.ERROR );
-                                                    mCallbackContext.sendPluginResult( mPluginResult );
+                                                    if (!mDisableBackup) {
+                                                        // This happens if the lock screen has been disabled or or a fingerprint got
+                                                        // enrolled. Thus show the dialog to authenticate with their password
+                                                        mFragmentForCompat.setCryptoObject( new FingerprintManagerCompat.CryptoObject( mCipher ) );
+                                                        mFragmentForCompat.setStage( FingerprintCompatAuthenticationDialogFragment.Stage.NEW_FINGERPRINT_ENROLLED );
+                                                        FragmentTransaction transaction = cordova.getActivity().getFragmentManager().beginTransaction();
+                                                        transaction.add( mFragmentForCompat, DIALOG_FRAGMENT_TAG );
+                                                        transaction.commitAllowingStateLoss();
+                                                    } else {
+                                                        Log.e( TAG, "Failed to init Cipher and backup disabled." );
+                                                        mCallbackContext.error( PluginError.INIT_CIPHER_FAILED.name() );
+                                                        mPluginResult = new PluginResult( PluginResult.Status.ERROR );
+                                                        mCallbackContext.sendPluginResult( mPluginResult );
+                                                    }
                                                 }
-                                            }
+                                                break;
                                         }
                                     }
                                 });
@@ -452,12 +459,12 @@ public class FingerprintAuth extends CordovaPlugin {
 
     private boolean isFingerprintAuthAvailable() throws SecurityException {
         // default
-        whichPluginWillUse = "FingerprintManager";
+        whichPluginWillUse = PluginImportClass.FingerprintManager;
 
         // check FingerprintManager
         if (mFingerPrintManager!= null) {
             if (mFingerPrintManager.isHardwareDetected() && mFingerPrintManager.hasEnrolledFingerprints()) {
-                whichPluginWillUse = "FingerprintManager";
+                whichPluginWillUse = PluginImportClass.FingerprintManager;
                 return true;
             }
         }
@@ -465,7 +472,7 @@ public class FingerprintAuth extends CordovaPlugin {
         // check FingerprintManagerCompat
         if (mFingerPrintManagerCompat!=null){
             if (mFingerPrintManagerCompat.isHardwareDetected() && mFingerPrintManagerCompat.hasEnrolledFingerprints()){
-                whichPluginWillUse = "FingerprintManagerCompat";
+                whichPluginWillUse = PluginImportClass.FingerprintManagerCompat;
                 return true;
             }
         }
